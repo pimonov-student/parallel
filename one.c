@@ -12,13 +12,13 @@ int main()
 
 #pragma acc data create(arr[:10000000]) copy(sum) copyin(step)
 {
-#pragma acc parallel loop vector vector_length(512) gang
+#pragma acc parallel loop vector vector_length(160) gang
 	for (int i = 0; i < 10000000; ++i)
 	{
 		arr[i] = sin(i * step);
 	}
 
-#pragma acc parallel loop reduction(+:sum)
+#pragma acc parallel loop vector vector_length(160) gang
 	for (int i = 0; i < 10000000; ++i)
 	{
 		sum += arr[i];
