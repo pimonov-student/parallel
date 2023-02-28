@@ -43,14 +43,13 @@ int main()
 		sum += arr[i];
 	}
 
-	free(arr);
-
 	clock_t end = clock();
 
 	printf("Sum:\t ");
 	printf(FORMAT, sum);
 	printf("\nTime:\t %lf\n", (double)(end - begin) / CLOCKS_PER_SEC);
 }
+	free(arr);
 
 	return 0;
 }
