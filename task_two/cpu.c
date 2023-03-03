@@ -3,10 +3,10 @@
 #include <malloc.h>
 #include <string.h>
 
-// При запуске: size tol iter_max по порядку в командной строке
+// РџСЂРё Р·Р°РїСѓСЃРєРµ: size tol iter_max РїРѕ РїРѕСЂСЏРґРєСѓ РІ РєРѕРјР°РЅРґРЅРѕР№ СЃС‚СЂРѕРєРµ
 int main(int argc, char** argv)
 {
-    // Из командной строки
+    // РР· РєРѕРјР°РЅРґРЅРѕР№ СЃС‚СЂРѕРєРё
     int size = atoi(argv[1]);
     double tol = atof(argv[2]);
     double iter_max = atof(argv[3]);
@@ -16,43 +16,43 @@ int main(int argc, char** argv)
     double step = 10.0 / size;
     double err = 1.0;
 
-    // Вспомогательные "угловые" индексы
+    // Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅС‹Рµ "СѓРіР»РѕРІС‹Рµ" РёРЅРґРµРєСЃС‹
     int up_left = 0;
     int up_right = size - 1;
     int down_left = size * size - size;
     int down_right = size * size - 1;
 
-    // Массивы, создаем и выделяем память
+    // РњР°СЃСЃРёРІС‹, СЃРѕР·РґР°РµРј Рё РІС‹РґРµР»СЏРµРј РїР°РјСЏС‚СЊ
     double* a = (double*)calloc(size * size, sizeof(double));
     double* a_new = (double*)calloc(size * size, sizeof(double*));
 
-    // Заполняем "угловые" пограничные значения
+    // Р—Р°РїРѕР»РЅСЏРµРј "СѓРіР»РѕРІС‹Рµ" РїРѕРіСЂР°РЅРёС‡РЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ
     a[up_left] = 10;
     a[up_right] = 20;
     a[down_right] = 30;
     a[down_left] = 20;
 
-    // Интерполируем up_left и up_right
+    // РРЅС‚РµСЂРїРѕР»РёСЂСѓРµРј up_left Рё up_right
     for (int i = 1; i < up_right; ++i)
     {
         a[i] = a[i - 1] + step;
     }
-    // Интерполируем down_left и down_right
+    // РРЅС‚РµСЂРїРѕР»РёСЂСѓРµРј down_left Рё down_right
     for (int i = down_left + 1; i < down_right; ++i)
     {
         a[i] = a[i - 1] + step;
     }
-    // Интерполируем up_left и down_left, up_right и up_down
+    // РРЅС‚РµСЂРїРѕР»РёСЂСѓРµРј up_left Рё down_left, up_right Рё up_down
     for (int i = size; i < down_left; i += size)
     {
         a[i] = a[i - size] + step;
         a[i + size - 1] = a[i - 1] + step;
     }
 
-    // Дублируем во вторую матрицу
+    // Р”СѓР±Р»РёСЂСѓРµРј РІРѕ РІС‚РѕСЂСѓСЋ РјР°С‚СЂРёС†Сѓ
     memcpy(a_new, a, num_of_bytes);
 
-    // Основной рабочий цикл
+    // РћСЃРЅРѕРІРЅРѕР№ СЂР°Р±РѕС‡РёР№ С†РёРєР»
     while (err > tol && iter < iter_max)
     {
         iter++;
