@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
+#include <math.h>
+#include <time.h>
 
 // При запуске: size tol iter_max по порядку в командной строке
 int main(int argc, char** argv)
@@ -11,6 +13,7 @@ int main(int argc, char** argv)
     double tol = atof(argv[2]);
     double iter_max = atof(argv[3]);
 
+    clock_t begin = clock();
     size_t num_of_bytes = sizeof(double) * size * size;
     int iter = 0;
     double step = 10.0 / size;
@@ -66,17 +69,17 @@ int main(int argc, char** argv)
                                        a[i + j + 1] +
                                        a[i - size + j] +
                                        a[i + size + j]);
-                err = max(err, a_new[i + j] - a[i + j]);
+                err = fmax(err, a_new[i + j] - a[i + j]);
             }
         }
 
         memcpy(a, a_new, num_of_bytes);
-
-        if (iter % 100 == 0 || iter == 1)
-        {
-            printf("%d\t%lf\n", iter, err);
-        }
     }
+
+    clock_t end = clock();
+
+    printf("%d:\t%-32.25lf\n", iter, err);
+    printf("Time:\t %lf\n", (double)(end - begin) / CLOCKS_PER_SEC);
 
     free(a);
     free(a_new);
