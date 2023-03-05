@@ -25,7 +25,8 @@ int main(int argc, char** argv)
     int down_left = size * size - size;
     int down_right = size * size - 1;
 
-    // our "matrices"
+    // our "matrices" and temp variable for swap
+    double* temp;
     double* a = (double*)calloc(size * size, sizeof(double));
     double* a_new = (double*)calloc(size * size, sizeof(double*));
 
@@ -73,7 +74,9 @@ int main(int argc, char** argv)
             }
         }
 
-        memcpy(a, a_new, num_of_bytes);
+        temp = a;
+	a = a_new;
+	a_new = temp;
     }
 
     clock_t end = clock();
