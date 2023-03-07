@@ -14,7 +14,6 @@ int main(int argc, char** argv)
     double iter_max = atof(argv[3]);
 
     clock_t begin = clock();
-    size_t num_of_bytes = sizeof(double) * size * size;
     int iter = 0;
     double step = 10.0 / size;
     double err = 1.0;
@@ -52,9 +51,6 @@ int main(int argc, char** argv)
         a[i] = a[i - size] + step;
         a[i + size - 1] = a[i - 1] + step;
     }
-
-    // copy to a_new
-    memcpy(a_new, a, num_of_bytes);
 
     // main cycle
     while (err > tol && iter < iter_max)
