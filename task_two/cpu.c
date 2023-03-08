@@ -13,7 +13,6 @@ int main(int argc, char** argv)
     double tol = atof(argv[2]);
     double iter_max = atof(argv[3]);
 
-    clock_t begin = clock();
     int iter = 0;
     double step = 10.0 / size;
     double err = 1.0;
@@ -39,18 +38,24 @@ int main(int argc, char** argv)
     for (int i = 1; i < up_right; ++i)
     {
         a[i] = a[i - 1] + step;
+	a_new[i] = a[i];
     }
     // transpose down_left and down_right
     for (int i = down_left + 1; i < down_right; ++i)
     {
         a[i] = a[i - 1] + step;
+	a_new[i] = a[i];
     }
     // transpose up_left and down_left, up_right and down_right
     for (int i = size; i < down_left; i += size)
     {
         a[i] = a[i - size] + step;
         a[i + size - 1] = a[i - 1] + step;
+	a_new[i] = a[i];
+	a_new[i + size - 1] = a[i + size - 1];
     }
+
+    clock_t begin = clock();
 
     // main cycle
     while (err > tol && iter < iter_max)
