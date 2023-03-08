@@ -63,8 +63,12 @@ int main(int argc, char** argv)
     while (err > tol && iter < iter_max)
     {
         iter++;
-        err = 0;
+
+	if (iter % 100 == 0)
+	{
+	    err = 0;
 #pragma acc update device(err)
+	}
 
 #pragma acc data present(a, a_new, err)
 #pragma acc parallel loop collapse(2) reduction(max:err)
@@ -79,7 +83,11 @@ int main(int argc, char** argv)
                 err = fmax(err, a_new[i + j] - a[i + j]);
             }
         }
+
+	if (iter % 100 == 0)
+	{
 #pragma acc update host(err)
+	}
 
         temp = a;
 	a = a_new;
