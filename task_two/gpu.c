@@ -67,7 +67,7 @@ int main(int argc, char** argv)
 #pragma acc update device(err)
 
 #pragma acc data present(a, a_new, err)
-#pragma acc parallel loop reduction(max:err)
+#pragma acc parallel loop collapse(2) reduction(max:err)
         for (int i = size; i < size * (size - 1); i += size)
         {
             for (int j = 1; j < size - 1; ++j)
