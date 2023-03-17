@@ -71,7 +71,7 @@ int main(int argc, char** argv)
                                        a[i + j + 1] +
                                        a[i - size + j] +
                                        a[i + size + j]);
-                err = fmax(err, a_new[i + j] - a[i + j]);
+                err = fmax(err, fabs(a_new[i + j] - a[i + j]));
             }
         }
 
