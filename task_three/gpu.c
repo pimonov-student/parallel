@@ -4,9 +4,8 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
-#include <cublas_v2.h>
 
-#define IDX2F(i, j, ld) (((j) * (ld)) + (i))
+#include <cublas_v2.h>
 
 // <program name> size tol iter_max by launching
 int main(int argc, char** argv)
@@ -17,9 +16,10 @@ int main(int argc, char** argv)
     double iter_max = atof(argv[3]);
 
     int iter = 0;
-    int err_index = 0;
     double step = 10.0 / size;
     double err = 1.0;
+
+    int err_index = 1;
     const double alpha_pos = 1.0;
     const double alpha_neg = -1.0;
 
@@ -32,7 +32,7 @@ int main(int argc, char** argv)
     // our "matrices" and temp variable for swap
     double* temp;
     double* a = (double*)calloc(size * size, sizeof(double));
-    double* a_new = (double*)calloc(size * size, sizeof(double*));
+    double* a_new = (double*)calloc(size * size, sizeof(double));
 
     // fill "corner" values
     a[up_left] = 10;
@@ -62,26 +62,24 @@ int main(int argc, char** argv)
     }
 
     cublasHandle_t handle;
-    cublasStatus_t status;
-    status = cublasCreate(&handle);
-    printf("%d\n", status);
+    cublasCreate(&handle);
 
     clock_t begin = clock();
 
-#pragma acc enter data create(a[:size*size], a_new[:size*size]) copyin(err, err_index)
+#pragma acc data copyin(a[:size*size], a_new[:size*size], err, err_index)
     {
     // main cycle
     while (err > tol && iter < iter_max)
     {
         iter++;
 
-	if (iter % 100 == 0 || iter == 1)
+	if (iter % 100 == 0)
 	{
 	    err = 0;
 #pragma acc update device(err)
 	}
 
-#pragma acc data present(a, a_new, err, err_index)
+//#pragma acc data present(a, a_new, err)
 #pragma acc parallel loop collapse(2)
         for (int i = size; i < size * (size - 1); i += size)
         {
@@ -96,20 +94,19 @@ int main(int argc, char** argv)
 
 #pragma acc host_data use_device(a, a_new)
 	{
-            status = cublasDaxpy(handle, size * size, &alpha_neg, a, 1, a_new, 1);
-	    printf("%d", status);
-            status = cublasIdamax(handle, size * size, a_new, 1, &err_index);
-            err = fmax(err, a_new[err_index]);
-            status = cublasDaxpy(handle, size * size, &alpha_pos, a, 1, a_new, 1);
-	    printf("%d", status);
-        }
+		cublasDaxpy(handle, size * size, &alpha_neg, a, 1, a_new, 1);
+		cublasIdamax(handle, size * size, a_new, 1, &err_index);
+		cublasDaxpy(handle, size * size, &alpha_pos, a, 1, a_new, 1);
+	}
 
-	if (iter % 100 == 0 || iter == 1)
+	err = fmax(err, fabs(a_new[err_index] - a[err_index]));
+
+	if (iter % 100 == 0)
 	{
 #pragma acc update host(err)
 	}
 
-	temp = a;
+        temp = a;
 	a = a_new;
 	a_new = temp;
     }
