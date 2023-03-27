@@ -19,7 +19,7 @@ int main(int argc, char** argv)
     double step = 10.0 / size;
     double err = 1.0;
 
-    int err_index = 1;
+    int err_index = 0;
     const double alpha_pos = 1.0;
     const double alpha_neg = -1.0;
 
@@ -39,6 +39,10 @@ int main(int argc, char** argv)
     a[up_right] = 20;
     a[down_right] = 30;
     a[down_left] = 20;
+    a_new[up_left] = 10;
+    a_new[up_right] = 20;
+    a_new[down_right] = 30;
+    a_new[down_left] = 20;   
 
     // transpose up_left and up_right
     for (int i = 1; i < up_right; ++i)
@@ -66,20 +70,14 @@ int main(int argc, char** argv)
 
     clock_t begin = clock();
 
-#pragma acc data copyin(a[:size*size], a_new[:size*size], err, err_index)
+#pragma acc data copyin(a[:size*size], a_new[:size*size], alpha_pos, alpha_neg, err, err_index)
     {
     // main cycle
     while (err > tol && iter < iter_max)
     {
         iter++;
 
-	if (iter % 100 == 0)
-	{
-	    err = 0;
-#pragma acc update device(err)
-	}
-
-//#pragma acc data present(a, a_new, err)
+#pragma acc data present(a, a_new)
 #pragma acc parallel loop collapse(2)
         for (int i = size; i < size * (size - 1); i += size)
         {
@@ -92,19 +90,26 @@ int main(int argc, char** argv)
             }
         }
 
+        if (iter % 100 == 0)
+    	        {
 #pragma acc host_data use_device(a, a_new)
-	{
-		cublasDaxpy(handle, size * size, &alpha_neg, a, 1, a_new, 1);
-		cublasIdamax(handle, size * size, a_new, 1, &err_index);
-		cublasDaxpy(handle, size * size, &alpha_pos, a, 1, a_new, 1);
-	}
+	        {
+	            cublasDaxpy(handle, size * size, &alpha_neg, a, 1, a_new, 1);
+	            cublasIdamax(handle, size * size, a_new, 1, &err_index);
+	            cublasDaxpy(handle, size * size, &alpha_pos, a, 1, a_new, 1);
 
-	err = fmax(err, fabs(a_new[err_index] - a[err_index]));
+#pragma acc update device(err_index)
+	        }
+	
 
-	if (iter % 100 == 0)
-	{
+#pragma acc kernels
+	        {
+	            err = 0;
+	            err = fmax(err, fabs(a_new[err_index - 1] - a[err_index - 1]));
+	        }
+
 #pragma acc update host(err)
-	}
+	        }
 
         temp = a;
 	a = a_new;
