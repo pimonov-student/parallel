@@ -5,8 +5,6 @@
 #include <math.h>
 #include <time.h>
 
-#include <cublas_v2.h>
-
 // <program name> size tol iter_max by launching
 int main(int argc, char** argv)
 {
@@ -18,10 +16,6 @@ int main(int argc, char** argv)
     int iter = 0;
     double step = 10.0 / size;
     double err = 1.0;
-
-    int err_index = 0;
-    const double alpha_pos = 1.0;
-    const double alpha_neg = -1.0;
 
     // "corner" indices
     int up_left = 0;
@@ -48,21 +42,21 @@ int main(int argc, char** argv)
     for (int i = 1; i < up_right; ++i)
     {
         a[i] = a[i - 1] + step;
-	a_new[i] = a[i];
+	    a_new[i] = a[i];
     }
     // transpose down_left and down_right
     for (int i = down_left + 1; i < down_right; ++i)
     {
         a[i] = a[i - 1] + step;
-	a_new[i] = a[i];
+	    a_new[i] = a[i];
     }
     // transpose up_left and down_left, up_right and down_right
     for (int i = size; i < down_left; i += size)
     {
         a[i] = a[i - size] + step;
         a[i + size - 1] = a[i - 1] + step;
-	a_new[i] = a[i];
-	a_new[i + size - 1] = a[i + size - 1];
+	    a_new[i] = a[i];
+	    a_new[i + size - 1] = a[i + size - 1];
     }
 
     clock_t begin = clock();
@@ -83,9 +77,6 @@ int main(int argc, char** argv)
             }
         }
 
-	    err = 0;
-	    err = fmax(err, fabs(a_new[err_index - 1] - a[err_index - 1]));
-        
         temp = a;
 	    a = a_new;
 	    a_new = temp;
