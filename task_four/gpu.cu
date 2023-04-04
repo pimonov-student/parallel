@@ -91,7 +91,7 @@ int main(int argc, char** argv)
     // cuda part
 
     // choose device
-    cudaSetDevice(5);
+    cudaSetDevice(2);
 
     // device copy variables
     double* dev_a = NULL;
