@@ -137,8 +137,8 @@ int main(int argc, char** argv)
         }
 
         temp = dev_a;
-	    dev_a = dev_a_new;
-	    dev_a_new = temp;
+        dev_a = dev_a_new;
+        dev_a_new = temp;
     }
 
     clock_t end = clock();
