@@ -5,8 +5,6 @@
 #include <math.h>
 #include <time.h>
 
-#include <cuda.h>
-#include <cuda_runtime.h>
 #include <cub/cub.cuh>
 
 // calculate "a_new" matrix
