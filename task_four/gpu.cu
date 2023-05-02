@@ -98,6 +98,7 @@ int main(int argc, char** argv)
     // device copy variables
     double* dev_a = NULL;
     double* dev_a_new = NULL;
+    double* dev_temp = NULL;
     double* dev_err = NULL;
     // substraction of matrices
     double* err_matrix = NULL;
@@ -108,6 +109,7 @@ int main(int argc, char** argv)
     // allocate memory on device
     cudaMalloc((void**)&dev_a, sizeof(double) * size * size);
     cudaMalloc((void**)&dev_a_new, sizeof(double) * size * size);
+    cudaMalloc((void**)&dev_temp, sizeof(double*));
     cudaMalloc((void**)&err_matrix, sizeof(double) * size * size);
     cudaMalloc((void**)&dev_err, sizeof(double));
 
@@ -122,11 +124,11 @@ int main(int argc, char** argv)
     // graph etc variables
     char graph_created = 0;
     cudaStream_t stream;
+    cudaStream_t memory_stream;
     cudaStreamCreate(&stream);
+    cudaStreamCreate(&memory_stream);
     cudaGraph_t graph;
     cudaGraphExec_t instance;
-
-    printf("all good\n");
 
     clock_t begin = clock();
 
@@ -139,15 +141,18 @@ int main(int argc, char** argv)
         {
             cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
     
-            for (int i = 0; i < 50; ++i)
+            for (int i = 0; i < 100; ++i)
             {
                 // calculate "a_new" matrix
-                calculate_matrix<<<size - 1, size - 1>>>(dev_a, dev_a_new, size);
-                calculate_matrix<<<size - 1, size - 1>>>(dev_a_new, dev_a, size);
+                calculate_matrix<<<size - 1, size - 1, 0, stream>>>(dev_a, dev_a_new, size);
+                // swap matrices
+                dev_temp = dev_a;
+                dev_a = dev_a_new;
+                dev_a_new = dev_temp;
             }
 
             // calculate matrix of errors, then find max error and copy its value to "err" stored on CPU
-            calculate_error_matrix<<<size - 1, size - 1>>>(dev_a, dev_a_new, err_matrix);
+            calculate_error_matrix<<<size - 1, size - 1, 0, stream>>>(dev_a, dev_a_new, err_matrix);
             cub::DeviceReduce::Max(temp_storage, temp_storage_size, err_matrix, dev_err, size * size, stream);
 
             cudaStreamEndCapture(stream, &graph);
@@ -157,7 +162,7 @@ int main(int argc, char** argv)
 
         cudaGraphLaunch(instance, stream);
         cudaStreamSynchronize(stream);
-        cudaMemcpy(&err, dev_err, sizeof(double), cudaMemcpyDeviceToHost);
+        cudaMemcpyAsync(&err, dev_err, sizeof(double), cudaMemcpyDeviceToHost, memory_stream);
     }
 
     clock_t end = clock();
@@ -175,6 +180,7 @@ int main(int argc, char** argv)
     cudaFreeHost(a_new);
 
     cudaStreamDestroy(stream);
+    cudaStreamDestroy(memory_stream);
     cudaGraphDestroy(graph);
 
     return 0;
