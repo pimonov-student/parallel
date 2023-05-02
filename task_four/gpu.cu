@@ -43,7 +43,7 @@ int main(int argc, char** argv)
 
     int iter = 0;
     double step = 10.0 / size;
-    double err = 1.0;
+    double* err;
 
     // "corner" indices
     int up_left = 0;
@@ -55,8 +55,12 @@ int main(int argc, char** argv)
     double* a;
     double* a_new;
     // for pinned memory using
+    cudaMallocHost(&err, sizeof(double));
     cudaMallocHost(&a, size * size * sizeof(double));
     cudaMallocHost(&a_new, size * size * sizeof(double));
+
+    // init error value
+    *err = 1.0;
 
     // fill "corner" values
     a[up_left] = 10;
@@ -133,7 +137,7 @@ int main(int argc, char** argv)
     clock_t begin = clock();
 
     // main cycle
-    while (err > tol && iter < iter_max)
+    while (*err > tol && iter < iter_max)
     {
         iter += 100;
 
@@ -162,12 +166,13 @@ int main(int argc, char** argv)
 
         cudaGraphLaunch(instance, stream);
         cudaStreamSynchronize(stream);
-        cudaMemcpyAsync(&err, dev_err, sizeof(double), cudaMemcpyDeviceToHost, memory_stream);
+        cudaMemcpyAsync(err, dev_err, sizeof(double), cudaMemcpyDeviceToHost, memory_stream);
+	cudaStreamSynchronize(memory_stream);
     }
 
     clock_t end = clock();
 
-    printf("%d:\t%-32.25lf\n", iter, err);
+    printf("%d:\t%-32.25lf\n", iter, *err);
     printf("Time:\t %lf\n", (double)(end - begin) / CLOCKS_PER_SEC);
 
     cudaFree(dev_a);
@@ -178,6 +183,7 @@ int main(int argc, char** argv)
 
     cudaFreeHost(a);
     cudaFreeHost(a_new);
+    cudaFreeHost(err);
 
     cudaStreamDestroy(stream);
     cudaStreamDestroy(memory_stream);
