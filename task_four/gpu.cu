@@ -10,18 +10,24 @@
 // calculate "a_new" matrix
 __global__ void calculate_matrix(double* a, double* a_new, int size)
 {
-    unsigned int i = blockIdx.x;
-    unsigned int j = threadIdx.x;
+    unsigned int i = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned int j = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (i * size + j >= size * size) return;
-
-    if (i != 0 && j != 0 && i != size - 1 && j != size - 1)
+    // out of array
+    if (i * size + j >= size * size)
     {
-        a_new[i * size + j] = 0.25 * (a[i * size + j - 1] +
-                                      a[i * size + j + 1] +
-                                      a[(i - 1) * size + j] +
-                                      a[(i + 1) * size + j]);
+        return;
     }
+    // first and last rows, first and last columns
+    if (i == 0 || i == size - 1 || j == 0 || j == size - 1)
+    {
+        return;
+    }
+    
+    a_new[i * size + j] = 0.25 * (a[i * size + j - 1] +
+                                  a[i * size + j + 1] +
+                                  a[(i - 1) * size + j] +
+                                  a[(i + 1) * size + j]);
 }
 
 // calculate substraction of matrices (errors, matrix of errors)
@@ -103,19 +109,23 @@ int main(int argc, char** argv)
     // device copy variables
     double* dev_a = NULL;
     double* dev_a_new = NULL;
+    double* dev_temp = NULL;
     double* dev_err = NULL;
     // substraction of matrices
     double* err_matrix = NULL;
     // temporary storage for reduce (and its size)
     double* temp_storage = NULL;
     size_t temp_storage_size = 0;
-    // template variable
+    // template variables
     size_t thread_count = size > 1024 ? 1024 : size;
-    size_t block_count = size * size / thread_count;
+    size_t block_count = size / thread_count;
+    dim3 blockDim(thread_count / 32, thread_count / 32);
+    dim3 gridDim(block_count * 32, block_count * 32);
 
     // allocate memory on device
     cudaMalloc((void**)&dev_a, sizeof(double) * size * size);
     cudaMalloc((void**)&dev_a_new, sizeof(double) * size * size);
+    cudaMalloc((void**)&dev_temp, sizeof(double*));
     cudaMalloc((void**)&err_matrix, sizeof(double) * size * size);
     cudaMalloc((void**)&dev_err, sizeof(double));
 
@@ -143,15 +153,18 @@ int main(int argc, char** argv)
         {
             cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
     
-            for (int i = 0; i < 50; ++i)
+            for (int i = 0; i < 100; ++i)
             {
                 // calculate "a_new" matrix
-                calculate_matrix<<<block_count, thread_count, 0, stream>>>(dev_a, dev_a_new, size);
-                calculate_matrix<<<block_count, thread_count, 0, stream>>>(dev_a_new, dev_a, size);
+                calculate_matrix<<<gridDim, blockDim, 0, stream>>>(dev_a, dev_a_new, size);
+                // swap matrices
+                dev_temp = dev_a;
+                dev_a = dev_a_new;
+                dev_a_new = dev_temp;
             }
 
             // calculate matrix of errors, then find max error and copy its value to "err" stored on CPU
-            calculate_error_matrix<<<block_count, thread_count, 0, stream>>>(dev_a, dev_a_new, err_matrix, size);
+            calculate_error_matrix<<<thread_count * block_count * block_count, thread_count, 0, stream>>>(dev_a, dev_a_new, err_matrix, size);
             cub::DeviceReduce::Max(temp_storage, temp_storage_size, err_matrix, dev_err, size * size, stream);
 
             cudaStreamEndCapture(stream, &graph);
