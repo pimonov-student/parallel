@@ -158,13 +158,16 @@ int main(int argc, char** argv)
     size_t first_row = rows_count * rank;
 
     // all parts need additional rows, one for the first and the last parts, two for all other
-    if (rank == 0 || rank == devices_count - 1)
+    if (devices_count != 1)
     {
-        rows_count += 1;
-    }
-    else
-    {
-        rows_count += 2;
+    	if (rank == 0 || rank == devices_count - 1)
+    	{
+        	rows_count += 1;
+    	}
+    	else
+    	{
+        	rows_count += 2;
+    	}
     }
 
 
@@ -248,7 +251,7 @@ int main(int argc, char** argv)
                              MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
             // lower border
-            if (rank != devices_count - 1)
+            if (rank != devices_count - 1 && devices_count != 1)
             {
                 MPI_Sendrecv(dev_a_new + (rows_count - 2) * size, size, MPI_DOUBLE,
                              rank + 1, 0,
@@ -271,7 +274,7 @@ int main(int argc, char** argv)
         MPI_Allreduce((void*)dev_err, (void*)dev_err, 1,
                       MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
         cudaMemcpyAsync(err, dev_err, sizeof(double), cudaMemcpyDeviceToHost, calculation_stream);
-        cudaStreamSynchronize(stream);
+	cudaStreamSynchronize(stream);
     }
 
     clock_t end = clock();
