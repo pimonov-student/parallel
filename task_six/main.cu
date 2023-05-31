@@ -22,7 +22,7 @@ __host__ void sigmoid(float* data, size_t size)
 {
     // template sizes
     size_t threads = 32;
-    size_t blocks = std::ceil((float)size / threads)
+    size_t blocks = std::ceil((float)size / threads);
 
     actual_sigmoid<<<blocks, threads>>>(data, size);
 }
@@ -43,10 +43,10 @@ public:
 
         cudaMallocHost(&buffer_for_weights, sizeof(float) * input_size * output_size);
         cudaMalloc(&this->weights, sizeof(float) * input_size * output_size);
-        cudaMalloc(&this->buffer_for_output, sizeof(float) * input_size * output_size);
+        cudaMalloc(&this->buffer_for_output, sizeof(float) * output_size);
 
         // read data from file in C way
-        fin = std::fopen("path", "rb");
+        fin = std::fopen(path, "rb");
         std::fread(buffer_for_weights, sizeof(float), input_size * output_size, fin);
         std::fclose(fin);
 
@@ -89,15 +89,15 @@ private:
     cublasHandle_t handle;
 };
 
-class Net()
+class Net
 {
 public:
     // constructor
     Net(size_t* sizes, char** paths, cublasHandle_t handle)
     {
-        this->fc1 = Linear(sizes[0], sizes[1], paths[0], handle);
-        this->fc2 = Linear(sizes[1], sizes[2], paths[1], handle);
-        this->fc3 = Linear(sizes[2], sizes[3], paths[2], handle);
+        this->fc1 = &Linear(sizes[0], sizes[1], paths[0], handle);
+        this->fc2 = &Linear(sizes[1], sizes[2], paths[1], handle);
+        this->fc3 = &Linear(sizes[2], sizes[3], paths[2], handle);
     }
     // destructor
     ~Net() = default;
@@ -128,20 +128,22 @@ int main()
     cublasCreate(&handle);
 
     size_t sizes[4] = { 32 * 32, 16 * 16, 4 * 4, 1 };
-    char* paths[3] = { "path_weights1", "path_weights2", "path_weigths3" };
+    char* paths[3] = { "./weights/weights_fc1.bin",
+                       "./weights/weights_fc2.bin",
+                       "./weights/weights_fc3.bin" };
 
     // input data
     float* input;
     float* dev_input;
     // output result
-    float* output;
+    float output;
 
     cudaMallocHost(&input, sizeof(float) * sizes[0]);
     cudaMalloc(&dev_input, sizeof(float) * sizes[0]);
 
     // reading inputs
     FILE* fin;
-    fin = std::fopen("path", "rb");
+    fin = std::fopen("./weights/weights_input.bin", "rb");
     std::fread(input, sizeof(float), sizes[0], fin);
     std::fclose(fin);
 
@@ -152,9 +154,13 @@ int main()
     Net* net = new Net(sizes, paths, handle);
 
     // forward pass
-    net->forward(dev_input, output);
+    net->forward(dev_input, &output);
 
+    std::cout << output << std::endl;
 
+    delete net;
+    cudaFreeHost(input);
+    cudaFree(dev_input);
 
     return 0;
 }
