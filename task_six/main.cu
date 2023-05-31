@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 #include <cstdio>
 #include <cmath>
 
@@ -95,9 +96,9 @@ public:
     // constructor
     Net(size_t* sizes, char** paths, cublasHandle_t handle)
     {
-        this->fc1 = &Linear(sizes[0], sizes[1], paths[0], handle);
-        this->fc2 = &Linear(sizes[1], sizes[2], paths[1], handle);
-        this->fc3 = &Linear(sizes[2], sizes[3], paths[2], handle);
+        this->fc1 = std::make_unique<Linear>(sizes[0], sizes[1], paths[0], handle);
+        this->fc2 = std::make_unique<Linear>(sizes[1], sizes[2], paths[1], handle);
+        this->fc3 = std::make_unique<Linear>(sizes[2], sizes[3], paths[2], handle);
     }
     // destructor
     ~Net() = default;
@@ -117,9 +118,9 @@ public:
         cudaMemcpy(output, result, sizeof(float), cudaMemcpyDeviceToHost);
     }
 private:
-    Linear* fc1;
-    Linear* fc2;
-    Linear* fc3;
+    std::unique_ptr<Linear> fc1;
+    std::unique_ptr<Linear> fc2;
+    std::unique_ptr<Linear> fc3;
 };
 
 int main()
@@ -138,17 +139,17 @@ int main()
     // output result
     float output;
 
-    cudaMallocHost(&input, sizeof(float) * sizes[0]);
-    cudaMalloc(&dev_input, sizeof(float) * sizes[0]);
+    cudaMallocHost(&input, sizeof(float) * 32 * 32);
+    cudaMalloc(&dev_input, sizeof(float) * 32 * 32);
 
     // reading inputs
     FILE* fin;
     fin = std::fopen("./weights/weights_input.bin", "rb");
-    std::fread(input, sizeof(float), sizes[0], fin);
+    std::fread(input, sizeof(float), 32 * 32, fin);
     std::fclose(fin);
 
     // copy them to device
-    cudaMemcpy(dev_input, input, sizeof(float) * sizes[0], cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_input, input, sizeof(float) * 32 * 32, cudaMemcpyHostToDevice);
 
     // network object
     Net* net = new Net(sizes, paths, handle);
