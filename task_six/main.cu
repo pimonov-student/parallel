@@ -6,7 +6,7 @@
 #include <cublas_v2.h>
 
 // sigmoid function
-__global__ void actual_sigmoid(float* data, size_t size)
+__global__ void sigmoid(float* data, size_t size)
 {
     size_t id = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -17,15 +17,6 @@ __global__ void actual_sigmoid(float* data, size_t size)
     }
 
     data[id] = 1.0 / (1.0 + expf(-data[id]));
-}
-
-__host__ void sigmoid(float* data, size_t size)
-{
-    // template sizes
-    size_t threads = 32;
-    size_t blocks = std::ceil((float)size / threads);
-
-    actual_sigmoid<<<blocks, threads>>>(data, size);
 }
 
 // fully connected layer class
@@ -107,13 +98,20 @@ public:
     void forward(float* input, float* output)
     {
         float* result = nullptr;
+        size_t threads = 32;
+        size_t blocks;
 
         this->fc1->forward(input, &result);
-        sigmoid(result, this->fc1->get_output_size());
+        blocks = std::ceil((float)this->fc1->get_output_size() / threads);
+        sigmoid<<<blocks, threads>>>(result, this->fc1->get_output_size());
+
         this->fc2->forward(result, &result);
-        sigmoid(result, this->fc2->get_output_size());
+        blocks = std::ceil((float)this->fc2->get_output_size() / threads);
+        sigmoid<<<blocks, threads>>>(result, this->fc2->get_output_size());
+
         this->fc3->forward(result, &result);
-        sigmoid(result, this->fc3->get_output_size());
+        blocks = std::ceil((float)this->fc3->get_output_size() / threads);
+        sigmoid<<<blocks, threads>>>(result, this->fc3->get_output_size());
 
         cudaMemcpy(output, result, sizeof(float), cudaMemcpyDeviceToHost);
     }
@@ -160,6 +158,7 @@ int main()
     std::cout << output << std::endl;
 
     delete net;
+    cublasDestroy(handle);
     cudaFreeHost(input);
     cudaFree(dev_input);
 
