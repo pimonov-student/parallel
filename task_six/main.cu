@@ -85,23 +85,45 @@ class Net
 {
 public:
     // constructor
-    Net(size_t* sizes, char** paths, cublasHandle_t handle)
+    Net(size_t* sizes, char** paths)
     {
+        cublasCreate(&handle);
+
+        cudaMallocHost(&input, sizeof(float) * sizes[0]);
+        cudaMalloc(&dev_input, sizeof(float) * sizes[0]);
+
         this->fc1 = std::make_unique<Linear>(sizes[0], sizes[1], paths[0], handle);
         this->fc2 = std::make_unique<Linear>(sizes[1], sizes[2], paths[1], handle);
         this->fc3 = std::make_unique<Linear>(sizes[2], sizes[3], paths[2], handle);
     }
     // destructor
-    ~Net() = default;
+    ~Net()
+    {
+        cublasDestroy(handle);
+        cudaFreeHost(input);
+        cudaFree(dev_input);
+    }
+
+    void read_input(char* path)
+    {
+        // reading inputs
+        FILE* fin;
+        fin = std::fopen(path, "rb");
+        std::fread(input, sizeof(float), 32 * 32, fin);
+        std::fclose(fin);
+
+        // copy them to device
+        cudaMemcpy(dev_input, input, sizeof(float) * 32 * 32, cudaMemcpyHostToDevice);
+    }
 
     // forward pass
-    void forward(float* input, float* output)
+    void forward(float* output)
     {
         float* result = nullptr;
         size_t threads = 32;
         size_t blocks;
 
-        this->fc1->forward(input, &result);
+        this->fc1->forward(dev_input, &result);
         blocks = std::ceil((float)this->fc1->get_output_size() / threads);
         sigmoid<<<blocks, threads>>>(result, this->fc1->get_output_size());
 
@@ -114,53 +136,34 @@ public:
         sigmoid<<<blocks, threads>>>(result, this->fc3->get_output_size());
 
         cudaMemcpy(output, result, sizeof(float), cudaMemcpyDeviceToHost);
+        std::cout << *output << std::endl;
     }
 private:
     std::unique_ptr<Linear> fc1;
     std::unique_ptr<Linear> fc2;
     std::unique_ptr<Linear> fc3;
+    float* input;
+    float* dev_input;
+    cublasHandle_t handle;
 };
 
 int main()
 {
-    cublasHandle_t handle;
-    cublasCreate(&handle);
-
     size_t sizes[4] = { 32 * 32, 16 * 16, 4 * 4, 1 };
     char* paths[3] = { "./weights/weights_fc1.bin",
                        "./weights/weights_fc2.bin",
                        "./weights/weights_fc3.bin" };
 
-    // input data
-    float* input;
-    float* dev_input;
     // output result
     float output;
 
-    cudaMallocHost(&input, sizeof(float) * 32 * 32);
-    cudaMalloc(&dev_input, sizeof(float) * 32 * 32);
-
-    // reading inputs
-    FILE* fin;
-    fin = std::fopen("./weights/weights_input.bin", "rb");
-    std::fread(input, sizeof(float), 32 * 32, fin);
-    std::fclose(fin);
-
-    // copy them to device
-    cudaMemcpy(dev_input, input, sizeof(float) * 32 * 32, cudaMemcpyHostToDevice);
-
     // network object
-    Net* net = new Net(sizes, paths, handle);
+    Net net(sizes, paths);
+    // reading input from .bin file
+    net.read_input("./weights/weights_input.bin");
 
     // forward pass
-    net->forward(dev_input, &output);
-
-    std::cout << output << std::endl;
-
-    delete net;
-    cublasDestroy(handle);
-    cudaFreeHost(input);
-    cudaFree(dev_input);
+    net.forward(&output);
 
     return 0;
 }
